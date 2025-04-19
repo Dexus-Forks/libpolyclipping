@@ -1,24 +1,93 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0)
-PROJECT(polyclipping)
+cmake_minimum_required(VERSION 3.22)
+project(polyclipping
+    VERSION 22.0.0
+    LANGUAGES CXX
+)
 
-SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "Release type")
-# The header name clipper.hpp is too generic, so install in a subdirectory
-SET(CMAKE_INSTALL_INCDIR "${CMAKE_INSTALL_PREFIX}/include/polyclipping")
-SET(CMAKE_INSTALL_LIBDIR "${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}")
-SET(CMAKE_INSTALL_PKGCONFIGDIR "${CMAKE_INSTALL_PREFIX}/share/pkgconfig")
-SET(PCFILE "${CMAKE_CURRENT_BINARY_DIR}/polyclipping.pc")
+# ■ Standard‑Verzeichnisse aus GNUInstallDirs
+include(GNUInstallDirs)
 
-SET(BUILD_SHARED_LIBS ON CACHE BOOL
-    "Build shared libraries (.dll/.so) instead of static ones (.lib/.a)")
-ADD_LIBRARY(polyclipping clipper.cpp)
+# ■ Default-Build‑Type nur für Single‑Config‑Generatoren setzen
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING
+      "Choose the type of build." FORCE)
+endif()
 
-CONFIGURE_FILE (polyclipping.pc.cmakein "${PCFILE}" @ONLY)
+# ■ Option für Shared vs. Static
+option(BUILD_SHARED_LIBS "Build shared libraries (.so/.dll) instead of static (.a/.lib)" ON)
 
-INSTALL (FILES clipper.hpp DESTINATION "${CMAKE_INSTALL_INCDIR}")
-INSTALL (TARGETS polyclipping RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-                              LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" 
-                              ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-INSTALL (FILES "${PCFILE}" DESTINATION "${CMAKE_INSTALL_PKGCONFIGDIR}")
+# ■ Bibliothek anlegen
+add_library(polyclipping
+    clipper.cpp
+)
 
-SET_TARGET_PROPERTIES(polyclipping PROPERTIES VERSION 22.0.0 SOVERSION 22 )
-SET_TARGET_PROPERTIES(polyclipping PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+# ■ Mindestens C++11 verlangen (oder höher, falls du Features nutzt)
+target_compile_features(polyclipping PUBLIC cxx_std_11)
+
+# ■ Include‑Verzeichnisse für Build vs. Install
+target_include_directories(polyclipping
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>            # für den Build: hier liegt clipper.hpp
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>          # nach install: <prefix>/include
+)
+
+# ■ Versions‑ und SOVERSION‑Einstellungen
+set_target_properties(polyclipping PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    WINDOWS_EXPORT_ALL_SYMBOLS ON
+)
+
+# ■ pkg-config‑File generieren
+configure_file(
+  ${CMAKE_CURRENT_LIST_DIR}/polyclipping.pc.cmakein
+  ${CMAKE_CURRENT_BINARY_DIR}/polyclipping.pc
+  @ONLY
+)
+
+# ■ Install-Regeln
+## Bibliothek
+install(TARGETS polyclipping
+    EXPORT polyclippingTargets
+    RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+## Header
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/clipper.hpp
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+## pkg-config
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/polyclipping.pc
+    DESTINATION ${CMAKE_INSTALL_PKGCONFIGDIR}
+)
+
+# ■ CMake‑Export für find_package()
+install(EXPORT polyclippingTargets
+    FILE polyclippingTargets.cmake
+    NAMESPACE polyclipping::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/polyclipping
+)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/polyclippingConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_LIST_DIR}/cmake/Config.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/polyclippingConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/polyclipping
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/polyclippingConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/polyclippingConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/polyclipping
+)
