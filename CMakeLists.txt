@@ -56,7 +56,7 @@ install(TARGETS polyclipping
 # Header installieren
 install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/clipper.hpp
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/polyclipping
 )
 
 # pkg-config installieren
